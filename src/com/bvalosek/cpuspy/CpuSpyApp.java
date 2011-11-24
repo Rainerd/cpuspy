@@ -164,12 +164,32 @@ public class CpuSpyApp extends Application {
       return (System.currentTimeMillis() - SystemClock.elapsedRealtime());
    }
 
-   /** loads offset prefs */
+   /** Loads offset prefs.
+
+       If the system was rebooted after last writing offsets, the
+       offsets are cleared.
+   */
    public void loadOffsets () {
       SharedPreferences settings = getSharedPreferences(PREF_NAME, MODE_PRIVATE);
       String prefs = settings.getString (PREF_OFFSETS, "");
 
       if (prefs == null || prefs.length() < 1) {
+         return;
+      }
+
+      final String boot_time_s = settings.getString (PREF_BOOT_TIME, "");
+      if (null == boot_time_s || boot_time_s.length() < 1) {
+         // Since boot time is unknown, we clear any offsets.
+         restoreStates();
+         return;
+      }
+      final long boot_time_from_file= Long.parseLong(boot_time_s);
+      final long min_boot_cycle_time= 30*1000; // msec
+      // Differences less than the assumed boot cycle time
+      // are assumed to be insignificant variation and ignored.
+      if (boot_time_from_file + min_boot_cycle_time < boot_time_millis()) {
+         // Clear offsets since they apply to a previous boot.
+         restoreStates();
          return;
       }
 
